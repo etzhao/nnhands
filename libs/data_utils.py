@@ -31,12 +31,17 @@ class HandDataset(Dataset):
         pos_3d = self.csv.iloc[idx, 1:(21*3)+1].as_matrix().astype(float)
         pos_3d = pos_3d.reshape(21,3)
 
+        p18 = pos_3d[17,:]
+
+        pos_3d -= p18
+
         pos_2d = self.csv.iloc[idx, (21*3)+1:].as_matrix().astype(float)
         pos_2d = pos_2d.reshape(21,2)
 
         sample = {'image': image,
                   'pos_3d': pos_3d,
-                  'pos_2d': pos_2d}
+                  'pos_2d': pos_2d,
+                  'p18': p18}
 
         if self.transform:
             sample = self.transform(sample)
@@ -50,7 +55,8 @@ class ToTensor(object):
         image = image.transpose((2,0,1))
         return {'image': torch.from_numpy(image),
                'pos_3d': torch.from_numpy(pos_3d),
-               'pos_2d': torch.from_numpy(pos_2d)}
+               'pos_2d': torch.from_numpy(pos_2d),
+               'p18': torch.from_numpy(p18)}
 
 class Scale(object):
     def __init__(self, h_out, w_out):
