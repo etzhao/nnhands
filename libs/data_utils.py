@@ -50,7 +50,7 @@ class HandDataset(Dataset):
 class ToTensor(object):
     def __call__(self, sample):
         image = sample['image']
-        pos_3d, pos_2d = sample['pos_3d'], sample['pos_2d']
+        pos_3d, pos_2d, p18 = sample['pos_3d'], sample['pos_2d'], sample['p18']
         # swap color axis
         image = image.transpose((2,0,1))
         return {'image': torch.from_numpy(image),
@@ -65,7 +65,7 @@ class Scale(object):
 
     def __call__(self, sample):
         image = sample['image']
-        pos_3d, pos_2d = sample['pos_3d'], sample['pos_2d']
+        pos_3d, pos_2d, p18 = sample['pos_3d'], sample['pos_2d'], sample['p18']
         image = Image.fromarray(image)
         width, height = image.width, image.height
         image = image.resize((self.w_out, self.h_out))
@@ -75,4 +75,5 @@ class Scale(object):
 
         return {'image': image,
                'pos_3d': pos_3d,
-               'pos_2d': pos_2d}
+               'pos_2d': pos_2d,
+               'p18': p18}
