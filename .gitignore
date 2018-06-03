@@ -3,3 +3,6 @@ dataset/
 .ipynb_checkpoints/
 dataset.csv
 HG10/
+.DS_Store
+*.pt
+
