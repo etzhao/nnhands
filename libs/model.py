@@ -50,12 +50,16 @@ model = nn.Sequential(
     *list(resnet34.children())[:-3],
     transConv2,
     nn.ReLU(),
+    nn.Dropout(),
     transConv3,
     nn.ReLU(),
+    nn.Dropout(),
     transConv4,
     nn.ReLU(),
+    nn.Dropout(),
     transConv5,
     nn.ReLU(),
+    nn.Dropout(),
 )
 
 modelHeatmap = nn.Sequential(
@@ -65,11 +69,26 @@ modelHeatmap = nn.Sequential(
 modelLocmap = nn.Sequential(
     conv6,
     nn.ReLU(),
+    nn.Dropout(),
     conv7,
     nn.ReLU(),
     conv8,
     nn.ReLU(),
     locationPrediction
+)
+
+
+norm5d = nn.InstanceNorm1d(num_features=5)
+#norm5d = nn.BatchNorm1d(num_features=5)
+
+fc = nn.Sequential(
+    nn.Linear(in_features=105, out_features=50),
+    nn.ReLU(),
+    nn.Linear(in_features=50, out_features=50),
+    nn.ReLU(),
+    #nn.Dropout(),
+    nn.Linear(in_features=50, out_features=10),
+    nn.Softmax(dim=1)
 )
 
 

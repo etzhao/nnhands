@@ -27,6 +27,33 @@ def makePosList(h_pred, l_pred, params):
     p3d = np.stack((p3d_x, p3d_y, p3d_z), axis=-1)
     return p2d, p3d
 
+def makePosListBatch(h_pred, l_pred, params):
+
+    batch_size = params['batch_size']
+    num_joints = params['num_joints']
+    image_size = params['image_size']
+    mplb_idx = np.repeat(np.arange(batch_size), num_joints)
+
+    idx_2d = torch.argmax(h_pred.view(batch_size, num_joints, -1), dim=2).data.numpy()
+    
+    p2d_y, p2d_x = np.unravel_index(idx_2d, (image_size, image_size))
+    p2d = np.stack((p2d_x, p2d_y), axis=-1)
+
+    l_pred = l_pred.view(batch_size, 3, -1)
+    
+    p3d_x = l_pred[:, 0].data.numpy()
+    p3d_x = p3d_x[mplb_idx, idx_2d.reshape(-1)]
+
+    p3d_y = l_pred[:, 1].data.numpy()
+    p3d_y = p3d_y[mplb_idx, idx_2d.reshape(-1)]
+
+    p3d_z = l_pred[:, 2].data.numpy()
+    p3d_z = p3d_z[mplb_idx, idx_2d.reshape(-1)]
+
+    p3d = np.stack((p3d_x.reshape(batch_size, num_joints), p3d_y.reshape(batch_size, num_joints), p3d_z.reshape(batch_size, num_joints)), axis=-1)
+    
+    return p2d, p3d
+
 
 def show_joints(image, pos_2d, pos_3d):
     image = image/255
@@ -235,18 +262,50 @@ def get_loss(model, modelHeatmap, modelLocmap, image, pos2d_list, pos3d_list, bl
     loss, loss_detailed = ComputeLoss(params)(heatmap, one_hot, loc_map, h_pred, l_pred, blw)
     return loss, loss_detailed
 
+def compute_g_loss(fc, norm5d, p2d, p3d, g_GT, params):
+    batch_size = params['batch_size']
+    epsilon = 1e-8
+    batch_idx = torch.from_numpy(np.arange(batch_size)).long()
+    p2d = torch.from_numpy(p2d)
+    p3d = torch.from_numpy(p3d)
+
+    # put 2D and 3D joint positions together
+    fc_in = torch.cat((p2d.float(), p3d), dim=2) # shape (N, 21, 5)
+    USE_GPU = params['USE_GPU']
+    if USE_GPU:
+        fc_in = fc_in.cuda()
+        
+    # transpose fc_in
+    fc_in.transpose_(1, 2) # shape (N, 5, 21)
+    
+    fc_in = norm5d(fc_in.contiguous() )
+    fc_in = fc_in.view(batch_size, -1) # shape(N, 105)
+    
+    # g_GT is of size (N, ) it just contains the labels for the batch
+    g_pred = fc(fc_in) # shape (N, 10) 
+    g_loss = torch.sum(-1.0 * (g_pred[batch_idx, g_GT.long()] + epsilon).log()) / batch_size
+    return g_loss, g_pred
+
 
 def load_model(model, modelHeatmap, modelLocmap, optimizer, fp_head, fp_tail, params):
-    device = params['device']
-    model.load_state_dict(torch.load('{}/model_param{}.pt'.format(fp_head, fp_tail),
-        map_location=device))
-    modelHeatmap.load_state_dict(torch.load('{}/modelHeatmap_param{}.pt'.format(fp_head, fp_tail),
-        map_location=device))
-    modelLocmap.load_state_dict(torch.load('{}/modelLocmap_param{}.pt'.format(fp_head, fp_tail),
-        map_location=device))
-    if optimizer != None:
-        optimizer.load_state_dict(torch.load('{}/optimizer_param{}.pt'.format(fp_head,
-            fp_tail), map_location=device))
+    USE_GPU = params['USE_GPU']
+    if USE_GPU:
+        model.load_state_dict(torch.load('{}/model_param{}.pt'.format(fp_head, fp_tail)))
+        modelHeatmap.load_state_dict(torch.load('{}/modelHeatmap_param{}.pt'.format(fp_head, fp_tail)))
+        modelLocmap.load_state_dict(torch.load('{}/modelLocmap_param{}.pt'.format(fp_head, fp_tail)))
+        if optimizer != None:
+            optimizer.load_state_dict(torch.load('{}/optimizer_param{}.pt'.format(fp_head,
+                fp_tail)))
+    else:
+        model.load_state_dict(torch.load('{}/model_param{}.pt'.format(fp_head, fp_tail),
+            map_location=lambda storage, loc: storage))
+        modelHeatmap.load_state_dict(torch.load('{}/modelHeatmap_param{}.pt'.format(fp_head, fp_tail),
+            map_location=lambda storage, loc: storage))
+        modelLocmap.load_state_dict(torch.load('{}/modelLocmap_param{}.pt'.format(fp_head, fp_tail),
+            map_location=lambda storage, loc: storage))
+        if optimizer != None:
+            optimizer.load_state_dict(torch.load('{}/optimizer_param{}.pt'.format(fp_head,
+                fp_tail), map_location=lambda storage, loc: storage))
     return model, modelHeatmap, modelLocmap, optimizer
 
 def save_model(epoch, idx, model, modelHeatmap, modelLocmap, optimizer):

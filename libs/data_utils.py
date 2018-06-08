@@ -33,7 +33,7 @@ class HandDataset(Dataset):
 
         p20 = pos_3d[20,:]
 
-        pos_3d -= p20
+        #pos_3d -= p20
 
         pos_2d = self.csv.iloc[idx, (21*3)+1:].as_matrix().astype(float)
         pos_2d = pos_2d.reshape(21,2)

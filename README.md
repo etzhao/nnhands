@@ -15,3 +15,6 @@ https://stanford.box.com/s/ckw0fmnuzrdlrp71z23d30brylwrlcfy
 ```
 pip install -r requirements.txt
 ```
+
+### To obtain HG10 dataset
+Visit: https://github.com/Matt-F-Wu/HG10
